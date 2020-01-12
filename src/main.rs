@@ -174,7 +174,7 @@ fn parse_expr(s: String, variables: &mut HashMap<String, i128>) -> Result<(Strin
             Expr::Var(name) => name,
             _ => unreachable!(),
         };
-        println!("assigned {} to {}", value, var_name);
+        println!("Assigned {} to `{}`", value, var_name);
         variables.insert(var_name, value);
         Ok((remaining, ()))
     }))
