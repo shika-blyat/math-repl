@@ -48,7 +48,7 @@ pub fn take_numbers(s: String) -> Result<(String, Expr), String> {
 pub fn shunting_yard(tokens: Vec<OpTerm>, variables: &HashMap<String, i128>) -> Vec<String> {
     let mut output = vec![];
     let mut stack: Vec<Operator> = vec![];
-    for token in tokens.into_iter().rev() {
+    for token in tokens {
         match token {
             OpTerm::OpTerm(expr) => match expr {
                 Expr::Lit(lit) => match lit {
@@ -90,26 +90,15 @@ fn apply_op(left: String, right: String, op: String) -> Result<i128, ParseIntErr
     }
 }
 pub fn eval_reverse_polish(tokens: Vec<String>) -> i128 {
-    let mut op_stack = vec![];
-    let mut last: Option<String> = None;
-    for i in tokens.into_iter().rev() {
+    let mut stack = vec![];
+    for i in tokens {
         if i.parse::<i128>().is_err() {
-            op_stack.push(i);
+            let right = stack.pop().unwrap();
+            let result = apply_op(stack.pop().unwrap(), right, i);
+            stack.push(result.unwrap().to_string());
         } else {
-            if let None = last {
-                last = Some(i);
-            } else {
-                last = Some(
-                    apply_op(
-                        last.unwrap(),
-                        i,
-                        op_stack.pop().expect("Operator stack was empty"),
-                    )
-                    .unwrap()
-                    .to_string(),
-                );
-            }
+            stack.push(i);
         }
     }
-    last.unwrap().parse().unwrap()
+    stack.pop().unwrap().parse().unwrap()
 }
