@@ -32,8 +32,7 @@ pub fn take_while1<V, X, T: Fn(String) -> Result<(X, V), ParserError>>(
     }
     Ok((chars.collect(), results))
 }
-#[allow(dead_code)]
-fn take_identifiers(s: String) -> Result<(String, Atom), ParserError> {
+pub fn take_identifier(s: String) -> Result<(String, String), ParserError> {
     let mut identifier = String::new();
     take_alpha(s).and_then(|(remaining, c)| {
         identifier.push(c);
@@ -42,9 +41,7 @@ fn take_identifiers(s: String) -> Result<(String, Atom), ParserError> {
                 vec.iter().for_each(|c| identifier.push(*c));
                 Ok((remaining, identifier))
             })
-            .and_then(|(remaining, result)| {
-                Ok((take_whitespaces0(remaining)?.0, Atom::Var(result)))
-            })
+            .and_then(|(remaining, result)| Ok((take_whitespaces0(remaining)?.0, result)))
     })
 }
 

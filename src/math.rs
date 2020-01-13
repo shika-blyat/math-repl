@@ -75,6 +75,7 @@ pub fn into_postfix(tokens: Expr) -> Result<Expr, ParserError> {
     for i in tokens {
         match i {
             Atom::Lit(lit) => output.push(Atom::Lit(lit)),
+            Atom::Var(ident) => output.push(Atom::Var(ident)),
             Atom::Op(op) => {
                 while op_stack.last().is_some() {
                     let last = op_stack.last().unwrap();
@@ -104,7 +105,7 @@ pub fn into_postfix(tokens: Expr) -> Result<Expr, ParserError> {
     }
     Ok(output)
 }
-pub fn eval_postfix(vec: Expr) -> Result<i128, ParserError> {
+pub fn eval_postfix(vec: Expr, variables: &mut HashMap<String, i128>) -> Result<i128, ParserError> {
     let mut stack: Expr = vec![];
     for i in vec {
         match i {
@@ -136,6 +137,15 @@ pub fn eval_postfix(vec: Expr) -> Result<i128, ParserError> {
                     }
                 }
             }
+            Atom::Var(value) => match variables.get(&value) {
+                Some(num) => stack.push(Atom::Lit(Literal::Num(*num as i32))),
+                None => {
+                    return Err(ParserError::newr(
+                        "".to_string(),
+                        format!("Undefined variable: {:#?}", value),
+                    ))
+                }
+            },
             _ => stack.push(i),
         }
     }
@@ -159,18 +169,20 @@ pub fn eval_postfix(vec: Expr) -> Result<i128, ParserError> {
 
 mod test {
     use crate::eval_expr;
+    use std::collections::HashMap;
     #[test]
-    fn addition() {
+    fn ops() {
+        let mut var = HashMap::new();
         assert_eq!(
-            eval_expr("1 + 2 * 3".to_string()),
+            eval_expr("1 + 2 * 3".to_string(), &mut var),
             Ok(("".to_string(), 1 + 2 * 3))
         );
         assert_eq!(
-            eval_expr("(1 + 2) * 3".to_string()),
+            eval_expr("(1 + 2) * 3".to_string(), &mut var),
             Ok(("".to_string(), (1 + 2) * 3))
         );
         assert_eq!(
-            eval_expr("(12 + (2 * 3)) * ( 5 +(3* 8)) + 3".to_string()),
+            eval_expr("(12 + (2 * 3)) * ( 5 +(3* 8)) + 3".to_string(), &mut var),
             Ok(("".to_string(), (12 + (2 * 3)) * (5 + (3 * 8)) + 3))
         );
     }
