@@ -12,8 +12,7 @@ pub enum Atom {
     Lit(Literal),
     Var(String),
     Op(Operator),
-    LeftParen,
-    RightParen,
+    Parens(Expr),
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Operator {
@@ -88,20 +87,7 @@ pub fn into_postfix(tokens: Expr) -> Result<Expr, String> {
                 }
                 op_stack.push(Atom::Op(op));
             }
-            Atom::LeftParen => {
-                op_stack.push(Atom::LeftParen);
-            }
-            Atom::RightParen => {
-                while op_stack.last().is_some() {
-                    let last = op_stack.last().unwrap();
-                    if let Atom::LeftParen = last {
-                        op_stack.pop().unwrap();
-                        break;
-                    } else {
-                        output.push(op_stack.pop().unwrap());
-                    }
-                }
-            }
+            Atom::Parens(expr) => into_postfix(expr)?.into_iter().for_each(|x| output.push(x)),
             _ => unimplemented!(),
         }
     }

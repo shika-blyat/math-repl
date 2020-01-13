@@ -25,9 +25,7 @@ pub fn take_atom(s: String, vec: &mut Expr) -> Result<(String, ()), String> {
                     let (remaining, _) = take_whitespaces0(remaining)
                         .and_then(|(remaining, _)| take_char(remaining, ')'))
                         .and_then(|(remaining, _)| take_whitespaces0(remaining))?;
-                    vec.push(Atom::LeftParen);
-                    expr.into_iter().for_each(|x| vec.push(x));
-                    vec.push(Atom::RightParen);
+                    vec.push(Atom::Parens(expr));
                     Ok((remaining, ()))
                 })
         })?;
