@@ -63,8 +63,8 @@ pub fn take_expr(s: String) -> Result<(String, Expr), ParserError> {
 }
 pub fn eval_expr(
     s: String,
-    variables: &mut HashMap<String, i128>,
-) -> Result<(String, i128), ParserError> {
+    variables: &mut HashMap<String, f32>,
+) -> Result<(String, f32), ParserError> {
     let mut rem = String::new();
     let result = take_expr(s)
         .and_then(|(remaining, expr)| {
@@ -76,8 +76,8 @@ pub fn eval_expr(
 }
 pub fn take_decl(
     s: String,
-    variables: &mut HashMap<String, i128>,
-) -> Result<(String, i128), ParserError> {
+    variables: &mut HashMap<String, f32>,
+) -> Result<(String, f32), ParserError> {
     let mut ident = String::new();
     let (remaining, value) = take_str(s.clone(), "let")
         .and_then(|(remaining, _)| take_whitespaces1(remaining))
@@ -96,8 +96,8 @@ pub fn take_decl(
 }
 pub fn eval_line(
     s: String,
-    variables: &mut HashMap<String, i128>,
-) -> Result<(String, i128), ParserError> {
+    variables: &mut HashMap<String, f32>,
+) -> Result<(String, f32), ParserError> {
     let result = take_decl(s, variables).or_else(|error| eval_expr(error.remaining(), variables));
     println!("{:#?}", variables);
     println!("{:#?}", result);
@@ -115,6 +115,7 @@ fn main() {
             break;
         }
         eval_line(input.to_string(), &mut variables);
+        //println!("{:#?}", take_numbers(input.to_string()));
     }
 }
 
