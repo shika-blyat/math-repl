@@ -1,3 +1,5 @@
+use crate::math::Atom;
+
 pub fn take_while1<V, X, T: Fn(String) -> Result<(X, V), String>>(
     s: String,
     predicate: T,
@@ -30,6 +32,21 @@ pub fn take_while1<V, X, T: Fn(String) -> Result<(X, V), String>>(
     }
     Ok((chars.collect(), results))
 }
+#[allow(dead_code)]
+fn take_identifiers(s: String) -> Result<(String, Atom), String> {
+    let mut identifier = String::new();
+    take_alpha(s).and_then(|(remaining, c)| {
+        identifier.push(c);
+        take_while0(remaining, |x| take_alphanumeric(x))
+            .and_then(|(remaining, vec)| {
+                vec.iter().for_each(|c| identifier.push(*c));
+                Ok((remaining, identifier))
+            })
+            .and_then(|(remaining, result)| {
+                Ok((take_whitespaces0(remaining)?.0, Atom::Var(result)))
+            })
+    })
+}
 
 pub fn take_while0<V, X, T: Fn(String) -> Result<(X, V), String>>(
     s: String,
@@ -61,6 +78,7 @@ fn take_ws(s: String) -> Result<(String, char), String> {
         .map(|c| (chars.collect::<String>(), c))
         .ok_or(s)
 }
+#[allow(dead_code)]
 pub fn take_whitespaces1(s: String) -> Result<(String, ()), String> {
     take_while1(s, |x| take_ws(x)).and_then(|(remaining, _)| Ok((remaining, ())))
 }
@@ -76,6 +94,22 @@ pub fn take_char(s: String, c: char) -> Result<(String, char), String> {
         .ok_or_else(|| s.clone())
         .and_then(|x| Ok((chars.collect::<String>(), x)))
 }
+pub fn take_str<'a>(s: String, s_to_match: &'a str) -> Result<(String, String), String> {
+    let chars_to_match = s_to_match.clone().chars();
+    let mut schars = s.chars();
+    for i in chars_to_match {
+        match schars.next() {
+            Some(x) => {
+                if i != x {
+                    return Err(s);
+                }
+            }
+            None => return Err(s),
+        }
+    }
+    Ok((schars.collect(), s_to_match.to_string()))
+}
+#[allow(dead_code)]
 pub fn take_not_char(s: String, c: char) -> Result<(String, char), String> {
     let mut chars = s.chars();
     let first = chars.next();
@@ -84,8 +118,8 @@ pub fn take_not_char(s: String, c: char) -> Result<(String, char), String> {
         .ok_or_else(|| s.clone())
         .and_then(|x| Ok((chars.collect::<String>(), x)))
 }
-
-pub fn check_not_char(s: String, c: char) -> Result<(String, char), String> {
+#[allow(dead_code)]
+pub fn check_char(s: String, c: char) -> Result<(String, char), String> {
     let mut chars = s.chars();
     let first = match chars.next() {
         Some(x) => x,
@@ -97,10 +131,10 @@ pub fn check_not_char(s: String, c: char) -> Result<(String, char), String> {
         Err(s)
     }
 }
-
-pub fn repeat0<V, T: Fn(String) -> Result<(String, V), String>>(
+#[allow(dead_code)]
+pub fn repeat0<V, T: FnMut(String) -> Result<(String, V), String>>(
     s: String,
-    predicate: T,
+    mut predicate: T,
 ) -> Result<(String, Vec<V>), String> {
     let mut remaining = s;
     let mut results = vec![];
@@ -114,6 +148,7 @@ pub fn repeat0<V, T: Fn(String) -> Result<(String, V), String>>(
         }
     }
 }
+#[allow(dead_code)]
 pub fn repeat0_with_state<K, V, T: Fn(String, &mut K) -> Result<(String, V), String>>(
     s: String,
     predicate: T,
