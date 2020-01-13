@@ -1,4 +1,7 @@
-use crate::common::{take_str, take_while1, take_whitespaces0};
+use crate::{
+    common::{take_str, take_while1, take_whitespaces0},
+    error::ParserError,
+};
 use std::{collections::HashMap, num::ParseIntError};
 
 pub type Expr = Vec<Atom>;
@@ -19,15 +22,15 @@ pub struct Operator {
     lexeme: String,
     precedence: i32,
 }
-fn take_digit(s: String) -> Result<(String, char), String> {
+fn take_digit(s: String) -> Result<(String, char), ParserError> {
     let mut chars = s.chars();
     let first = chars.next();
     first
         .filter(|x| x.is_digit(10))
-        .ok_or_else(|| s.clone())
+        .ok_or_else(|| ParserError::new(s.clone()))
         .and_then(|x| Ok((chars.collect::<String>(), x)))
 }
-pub fn take_numbers(s: String) -> Result<(String, Atom), String> {
+pub fn take_numbers(s: String) -> Result<(String, Atom), ParserError> {
     take_while1(s.clone(), |x| take_digit(x))
         .map(|(remaining, vec)| {
             (
@@ -41,12 +44,12 @@ pub fn take_numbers(s: String) -> Result<(String, Atom), String> {
                 Atom::Lit(Literal::Num(num)),
             ))
         })
-        .map_err(|_| s)
+        .map_err(|_| ParserError::new(s))
 }
 
-pub fn take_operator(s: String) -> Result<(String, Atom), String> {
+pub fn take_operator(s: String) -> Result<(String, Atom), ParserError> {
     take_str(s.clone(), "+")
-        .or_else(|remaining| take_str(remaining, "*"))
+        .or_else(|error| take_str(error.remaining(), "*"))
         .and_then(|(remaining, op)| match op.as_str() {
             "+" => Ok((
                 remaining,
@@ -62,11 +65,11 @@ pub fn take_operator(s: String) -> Result<(String, Atom), String> {
                     precedence: 10,
                 }),
             )),
-            _ => Err(s),
+            _ => Err(ParserError::newr(s, format!("Unknwon operator: {}", op))),
         })
 }
 
-pub fn into_postfix(tokens: Expr) -> Result<Expr, String> {
+pub fn into_postfix(tokens: Expr) -> Result<Expr, ParserError> {
     let mut op_stack: Expr = vec![];
     let mut output = vec![];
     for i in tokens {
@@ -88,7 +91,12 @@ pub fn into_postfix(tokens: Expr) -> Result<Expr, String> {
                 op_stack.push(Atom::Op(op));
             }
             Atom::Parens(expr) => into_postfix(expr)?.into_iter().for_each(|x| output.push(x)),
-            _ => unimplemented!(),
+            _ => {
+                return Err(ParserError::newr(
+                    "".to_string(),
+                    format!("Token {:#?} isn't allowed here", i),
+                ))
+            }
         }
     }
     for i in op_stack.into_iter().rev() {
@@ -96,25 +104,36 @@ pub fn into_postfix(tokens: Expr) -> Result<Expr, String> {
     }
     Ok(output)
 }
-pub fn eval_postfix(vec: Expr) -> Result<i128, String> {
+pub fn eval_postfix(vec: Expr) -> Result<i128, ParserError> {
     let mut stack: Expr = vec![];
     for i in vec {
         match i {
             Atom::Op(op) => {
-                let operand2 = if let Atom::Lit(Literal::Num(num)) = stack.pop().unwrap() {
+                let operand2 = if let Some(Atom::Lit(Literal::Num(num))) = stack.pop() {
                     num
                 } else {
-                    panic!("Unexpected {:#?}", op);
+                    return Err(ParserError::newr(
+                        "".to_string(),
+                        format!("Expression wasn't valid"),
+                    ));
                 };
-                let operand1 = if let Atom::Lit(Literal::Num(num)) = stack.pop().unwrap() {
+                let operand1 = if let Some(Atom::Lit(Literal::Num(num))) = stack.pop() {
                     num
                 } else {
-                    panic!("Unexpected {:#?}", op);
+                    return Err(ParserError::newr(
+                        "".to_string(),
+                        format!("Expression wasn't valid"),
+                    ));
                 };
                 match op.lexeme.as_str() {
                     "+" => stack.push(Atom::Lit(Literal::Num(operand1 + operand2))),
                     "*" => stack.push(Atom::Lit(Literal::Num(operand1 * operand2))),
-                    _ => unimplemented!(),
+                    _ => {
+                        return Err(ParserError::newr(
+                            "".to_string(),
+                            format!("Unknwon operator: {:#?}", op),
+                        ))
+                    }
                 }
             }
             _ => stack.push(i),
@@ -123,10 +142,18 @@ pub fn eval_postfix(vec: Expr) -> Result<i128, String> {
     if stack.len() == 1 {
         match stack[0] {
             Atom::Lit(Literal::Num(num)) => Ok(num as i128),
-            _ => panic!("Evaluation stack didn't contained a number"),
+            _ => {
+                return Err(ParserError::newr(
+                    "".to_string(),
+                    format!("Syntax Error: Unknown"),
+                ))
+            }
         }
     } else {
-        panic!("Evaluation stack wasn't empty")
+        return Err(ParserError::newr(
+            "".to_string(),
+            format!("Syntax Error: Unknown"),
+        ));
     }
 }
 

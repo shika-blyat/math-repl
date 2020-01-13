@@ -1,24 +1,28 @@
 #![allow(unused_imports)]
+mod common;
+mod error;
+mod math;
+
 use common::{
     check_char, repeat0, repeat0_with_state, take_alpha, take_alphanumeric, take_char,
     take_not_char, take_while0, take_while1, take_whitespaces0, take_whitespaces1,
 };
+use error::ParserError;
 use math::{eval_postfix, into_postfix, take_numbers, take_operator, Atom, Expr};
 use std::{
     collections::HashMap,
     io::{stdin, stdout, Write},
 };
-mod common;
-mod math;
-pub fn take_atom(s: String, vec: &mut Expr) -> Result<(String, ()), String> {
+
+pub fn take_atom(s: String, vec: &mut Expr) -> Result<(String, ()), ParserError> {
     let (remaining, _) = take_whitespaces0(s)
-        .and_then(|(remaining, _)| take_numbers(remaining))
+        .and_then(|(error, _)| take_numbers(error))
         .and_then(|(remaining, num)| {
             vec.push(num);
             take_whitespaces0(remaining)
         })
-        .or_else(|remaining| {
-            take_char(remaining, '(')
+        .or_else(|error| {
+            take_char(error.remaining(), '(')
                 .and_then(|(remaining, _)| take_whitespaces0(remaining))
                 .and_then(|(remaining, _)| {
                     let (remaining, expr) = take_expr(remaining)?;
@@ -28,10 +32,16 @@ pub fn take_atom(s: String, vec: &mut Expr) -> Result<(String, ()), String> {
                     vec.push(Atom::Parens(expr));
                     Ok((remaining, ()))
                 })
+        })
+        .or_else(|_| {
+            Err(ParserError::newr(
+                "".to_string(),
+                format!("Expected either number or a parenthesized expression here"),
+            ))
         })?;
     Ok((remaining, ()))
 }
-pub fn take_expr(s: String) -> Result<(String, Expr), String> {
+pub fn take_expr(s: String) -> Result<(String, Expr), ParserError> {
     let mut expr = vec![];
     let (remaining, _) = take_atom(s, &mut expr).and_then(|(remaining, _)| {
         repeat0(remaining, |remaining| {
@@ -44,7 +54,7 @@ pub fn take_expr(s: String) -> Result<(String, Expr), String> {
     })?;
     Ok((remaining, expr))
 }
-pub fn eval_expr(s: String) -> Result<(String, i128), String> {
+pub fn eval_expr(s: String) -> Result<(String, i128), ParserError> {
     let mut rem = String::new();
     let result = take_expr(s)
         .and_then(|(remaining, expr)| {
